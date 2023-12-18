@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { parse, serialize } from 'cookie';
-
+import { parse } from 'cookie';
 async function fetchAvailableLanguages(): Promise<string[]> {
   const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/languages`);
   const data = await response.json();
@@ -10,40 +9,41 @@ async function fetchAvailableLanguages(): Promise<string[]> {
     ) || []
   );
 }
-
-async function getLanguageByIP(): Promise<string | undefined> {
-  const response = await fetch(`/api/getLangByIP`);
-  const data = await response.json();
-  return data?.language;
-}
-
 export async function middleware(
   request: NextRequest
 ): Promise<NextResponse | void> {
+  const res = NextResponse.next();
   const cookies = request.headers.get('cookie')
     ? parse(request.headers.get('cookie') as string)
     : {};
 
   let locale: string | undefined = cookies?.language;
-
+  let ip = request.ip ?? request.headers.get('x-real-ip');
+  const forwardedFor = request.headers.get('x-forwarded-for');
+  if (!ip && forwardedFor) {
+    ip = forwardedFor.split(',').at(0) ?? 'Unknown';
+  }
   if (!locale) {
-    // const availableLanguages = await fetchAvailableLanguages();
-    // const detectedLanguage = await getLanguageByIP();
+    const defaultLanguage = 'en';
+    locale = defaultLanguage;
+    if (ip) {
+      const availableLanguages = await fetchAvailableLanguages();
+      const response = await (
+        await fetch(`https://ipinfo.io/${ip}?token=e71a711525bcb3`)
+      ).json();
+      const detectedLanguage: string = response?.country.toLowerCase();
 
-    locale = 'en';
-    const newCookie = serialize('language', locale, {
-      maxAge: 60 * 60 * 24 * 7, // 1 week
-      path: '/'
-    });
-
-    const response = new NextResponse();
-    response.headers.set('Set-Cookie', newCookie);
+      if (availableLanguages.includes(detectedLanguage)) {
+        locale = detectedLanguage;
+      }
+      res.cookies.set('language', locale);
+    }
   }
 
   if (request.nextUrl.pathname === '/') {
     return NextResponse.redirect(new URL(`/${locale}`, request.url));
   }
-  return NextResponse.next();
+  return res;
 }
 
 export const config = {
