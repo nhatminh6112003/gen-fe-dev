@@ -15,7 +15,6 @@ export async function middleware(
 ): Promise<NextResponse | void> {
   const { nextUrl: url, geo } = request;
   const country = geo?.country || 'en';
-  console.log('TCL: country', country);
   const res = NextResponse.next();
   const cookies = request.headers.get('cookie')
     ? parse(request.headers.get('cookie') as string)
@@ -24,24 +23,13 @@ export async function middleware(
   if (!locale) {
     const defaultLanguage = 'en';
     locale = defaultLanguage;
-    // const availableLanguages = await fetchAvailableLanguages();
-    const availableLanguages = [
-      'en',
-      'vn',
-      'pl',
-      'el',
-      'fr',
-      'th',
-      'es',
-      'ja',
-      'zh',
-      'ar',
-      'tr',
-      'de'
-    ];
-
-    if (country && availableLanguages.includes(country.toLowerCase())) {
-      locale = country.toLowerCase();
+    const availableLanguages = await fetchAvailableLanguages();
+    let detectedLanguage = country.toLowerCase();
+    if (detectedLanguage === 'vn') {
+      detectedLanguage = 'vi';
+    }
+    if (country && availableLanguages.includes(detectedLanguage)) {
+      locale = detectedLanguage;
     }
     res.cookies.set('language', locale);
   }
