@@ -9,33 +9,39 @@ async function fetchAvailableLanguages(): Promise<string[]> {
     ) || []
   );
 }
-function getProtocol() {
-  const isProd = process.env.MODE === 'production';
-  if (isProd) return 'https://';
-  return 'http://';
-}
 
 export async function middleware(
   request: NextRequest
 ): Promise<NextResponse | void> {
+  const { nextUrl: url, geo } = request;
+  const country = geo?.country || 'en';
+  console.log('TCL: country', country);
   const res = NextResponse.next();
   const cookies = request.headers.get('cookie')
     ? parse(request.headers.get('cookie') as string)
     : {};
-  const host = request.headers.get('host');
-  const protocol = getProtocol();
   let locale: string | undefined = cookies?.language;
   if (!locale) {
     const defaultLanguage = 'en';
     locale = defaultLanguage;
-    const availableLanguages = await fetchAvailableLanguages();
-    const response = await (
-      await fetch(`${protocol}${host}/api/getLangByIP`)
-    ).json();
-    const detectedLanguage: string | undefined = response?.language;
+    // const availableLanguages = await fetchAvailableLanguages();
+    const availableLanguages = [
+      'en',
+      'vn',
+      'pl',
+      'el',
+      'fr',
+      'th',
+      'es',
+      'ja',
+      'zh',
+      'ar',
+      'tr',
+      'de'
+    ];
 
-    if (detectedLanguage && availableLanguages.includes(detectedLanguage)) {
-      locale = detectedLanguage;
+    if (country && availableLanguages.includes(country.toLowerCase())) {
+      locale = country.toLowerCase();
     }
     res.cookies.set('language', locale);
   }
