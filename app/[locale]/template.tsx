@@ -7,7 +7,7 @@ import Footer from '@/components/ui/Footer';
 import { useLanguage } from '@/context/LanguageContext';
 const langs = [
   'en',
-  'vn',
+  'vi',
   'pl',
   'el',
   'fr',
