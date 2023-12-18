@@ -9,6 +9,12 @@ async function fetchAvailableLanguages(): Promise<string[]> {
     ) || []
   );
 }
+function getProtocol() {
+  const isProd = process.env.MODE === 'production';
+  if (isProd) return 'https://';
+  return 'http://';
+}
+
 export async function middleware(
   request: NextRequest
 ): Promise<NextResponse | void> {
@@ -16,28 +22,22 @@ export async function middleware(
   const cookies = request.headers.get('cookie')
     ? parse(request.headers.get('cookie') as string)
     : {};
-
+  const host = request.headers.get('host');
+  const protocol = getProtocol();
   let locale: string | undefined = cookies?.language;
-  let ip = request.ip ?? request.headers.get('x-real-ip');
-  const forwardedFor = request.headers.get('x-forwarded-for');
-  if (!ip && forwardedFor) {
-    ip = forwardedFor.split(',').at(0) ?? 'Unknown';
-  }
   if (!locale) {
     const defaultLanguage = 'en';
     locale = defaultLanguage;
-    if (ip) {
-      const availableLanguages = await fetchAvailableLanguages();
-      const response = await (
-        await fetch(`https://ipinfo.io/${ip}?token=e71a711525bcb3`)
-      ).json();
-      const detectedLanguage: string = response?.country.toLowerCase();
+    const availableLanguages = await fetchAvailableLanguages();
+    const response = await (
+      await fetch(`${protocol}${host}/api/getLangByIP`)
+    ).json();
+    const detectedLanguage: string | undefined = response?.language;
 
-      if (availableLanguages.includes(detectedLanguage)) {
-        locale = detectedLanguage;
-      }
-      res.cookies.set('language', locale);
+    if (detectedLanguage && availableLanguages.includes(detectedLanguage)) {
+      locale = detectedLanguage;
     }
+    res.cookies.set('language', locale);
   }
 
   if (request.nextUrl.pathname === '/') {
